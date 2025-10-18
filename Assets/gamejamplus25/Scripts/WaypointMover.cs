@@ -4,10 +4,10 @@ using System.Collections;
 public class WaypointMover : MonoBehaviour
 {
     public Transform[] waypoints;
-    public float speed = 5f;
+    public float speed = 8f;
     public float rotationSpeed = 5f;       // Suaviza a rotação
     public float stopDistance = 0.1f;
-    public float pauseTime = 1.5f;         // Tempo de pausa nos waypoints
+    public float pauseTime = 1.3f;         // Tempo de pausa nos waypoints
     public bool randomizeSpeed = true;     // Velocidade levemente variável
 
     private int currentIndex = 0;
@@ -25,7 +25,7 @@ public class WaypointMover : MonoBehaviour
         }
 
         if (randomizeSpeed)
-            speed *= Random.Range(1.0f, 1.3f);
+            speed *= Random.Range(2f, 2.5f);
     }
 
     void FixedUpdate()
