@@ -145,7 +145,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 107927252}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 24a2178fee8fd8f458bf9309a0525d7e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -838,20 +838,20 @@ MonoBehaviour:
   powerText: {fileID: 168418926}
   powerGradient:
     serializedVersion: 2
-    key0: {r: 1, g: 0.95906717, b: 0.6367924, a: 1}
-    key1: {r: 1, g: 0.0047169924, b: 0.0047169924, a: 1}
-    key2: {r: 0, g: 0, b: 0, a: 0}
-    key3: {r: 0, g: 0, b: 0, a: 0}
-    key4: {r: 0, g: 0, b: 0, a: 0}
-    key5: {r: 0, g: 0, b: 0, a: 0}
+    key0: {r: 0.67285365, g: 0.9056604, b: 0.6536134, a: 1}
+    key1: {r: 0.4664043, g: 0.8207547, b: 0.43747774, a: 1}
+    key2: {r: 0.9433962, g: 0.83847314, b: 0.48504806, a: 0}
+    key3: {r: 0.8113208, g: 0.6055549, b: 0.21048418, a: 0}
+    key4: {r: 0.9339623, g: 0.649751, b: 0.48900855, a: 0}
+    key5: {r: 1, g: 0.25, b: 0.25, a: 0}
     key6: {r: 0, g: 0, b: 0, a: 0}
     key7: {r: 0, g: 0, b: 0, a: 0}
     ctime0: 0
-    ctime1: 65535
-    ctime2: 0
-    ctime3: 0
-    ctime4: 0
-    ctime5: 0
+    ctime1: 19468
+    ctime2: 23516
+    ctime3: 44140
+    ctime4: 49344
+    ctime5: 65535
     ctime6: 0
     ctime7: 0
     atime0: 0
@@ -864,7 +864,7 @@ MonoBehaviour:
     atime7: 0
     m_Mode: 0
     m_ColorSpace: -1
-    m_NumColorKeys: 2
+    m_NumColorKeys: 6
     m_NumAlphaKeys: 2
 --- !u!114 &1399438954 stripped
 MonoBehaviour:
@@ -1104,7 +1104,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2135065480}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 24a2178fee8fd8f458bf9309a0525d7e, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -1234,14 +1234,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4568963419422181251, guid: 045833117dfdce2448e07b2fd8293d56, type: 3}
-      propertyPath: powerFill
-      value: 
-      objectReference: {fileID: 1651175765}
-    - target: {fileID: 4568963419422181251, guid: 045833117dfdce2448e07b2fd8293d56, type: 3}
-      propertyPath: powerText
-      value: 
-      objectReference: {fileID: 168418926}
     - target: {fileID: 5060617610098124407, guid: 045833117dfdce2448e07b2fd8293d56, type: 3}
       propertyPath: m_Name
       value: PFB_Player_CHAR
