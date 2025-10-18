@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 4290566657748946894}
   - component: {fileID: 7755584791381784495}
   m_Layer: 0
-  m_Name: PFB_Line_CHAR
+  m_Name: PFB_Outine_CHAR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -53,7 +53,7 @@ LineRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 256
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 10306, guid: 0000000000000000f000000000000000, type: 0}
@@ -76,7 +76,7 @@ LineRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -59598823
   m_SortingLayer: 1
-  m_SortingOrder: 9999
+  m_SortingOrder: 8888
   m_Positions:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 0, z: 1}
@@ -100,8 +100,8 @@ LineRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 0.8584906, g: 0.6938277, b: 0.17412782, a: 1}
-      key1: {r: 0.990566, g: 0.032707386, b: 0.032707386, a: 1}
+      key0: {r: 0.6132076, g: 0.6132076, b: 0.6132076, a: 1}
+      key1: {r: 0.6132076, g: 0.6132076, b: 0.6132076, a: 1}
       key2: {r: 0, g: 0, b: 0, a: 0.39215687}
       key3: {r: 0, g: 0, b: 0, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
