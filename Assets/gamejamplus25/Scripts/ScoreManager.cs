@@ -3,14 +3,14 @@ using TMPro;
 
 public class ScoreManager : MonoBehaviour
 {
-    public static ScoreManager instance;
-    public int currentScore = 0;
-    public TextMeshProUGUI scoreText;
+    public static ScoreManager scoreManagerInstance;
+    private int currentScore = 0;
+    [SerializeField] TextMeshProUGUI scoreText;
 
     private void Awake()
     {
-        if (instance == null)
-            instance = this;
+        if (scoreManagerInstance == null)
+            scoreManagerInstance = this;
         else
             Destroy(gameObject);
     }
@@ -19,6 +19,6 @@ public class ScoreManager : MonoBehaviour
     {
         currentScore += points;
         if (scoreText != null)
-            scoreText.text = "Score: " + currentScore;
+            scoreText.text = currentScore.ToString();
     }
 }
