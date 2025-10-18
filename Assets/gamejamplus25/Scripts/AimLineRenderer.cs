@@ -4,21 +4,19 @@ using UnityEngine;
 ///  - maxLine  : always full length (maxDrawDistance) in the current aim direction
 ///  - fillLine : current length based on cursor distance
 ///
-/// Handles color, ghost transparency, and power gradient dynamically.
-/// Listens only to LineForce events; does not change physics.
+/// Handles color, ghost transparency, power gradient, and start offset dynamically.
 [DisallowMultipleComponent]
 public class AimLineRenderer : MonoBehaviour
 {
     [Header("Sources")]
-    [SerializeField] private LineForce lineForce;     // required
-    [SerializeField] private new Camera camera;       // optional, defaults to Camera.main
+    [SerializeField] private LineForce lineForce;
+    [SerializeField] private new Camera camera;
 
     [Header("Lines")]
-    [SerializeField] private LineRenderer fillLine;   // actual power
-    [SerializeField] private LineRenderer maxLine;    // outline / full range
+    [SerializeField] private LineRenderer fillLine;
+    [SerializeField] private LineRenderer maxLine;
 
     [Header("Line Colors")]
-    [Tooltip("Gradient for the main (fill) line.")]
     [SerializeField] private Gradient fillGradient = new Gradient
     {
         colorKeys = new[]
@@ -33,7 +31,6 @@ public class AimLineRenderer : MonoBehaviour
         }
     };
 
-    [Tooltip("Gradient for the max (outline) line.")]
     [SerializeField] private Gradient maxGradient = new Gradient
     {
         colorKeys = new[]
@@ -54,13 +51,16 @@ public class AimLineRenderer : MonoBehaviour
     [Tooltip("Extra alpha multiplier for the outline to make it fainter overall.")]
     [SerializeField, Range(0f, 1f)] private float maxBaseAlpha = 0.5f;
 
-    [Header("Tuning")]
+    [Header("Geometry")]
+    [Tooltip("Distance offset from the ball center to start drawing lines.")]
+    [SerializeField, Range(0f, 1f)] private float startOffset = 0.2f;
     [Tooltip("World Y where lines are drawn (table plane).")]
     [SerializeField] private float flattenToY = 0f;
-    [SerializeField] private float checkInterval = 0.02f;
 
-    [Header("Behavior")]
+    [Header("Timing & Behavior")]
+    [SerializeField] private float checkInterval = 0.02f;
     [SerializeField] private bool hideWhenTooShort = true;
+    [Tooltip("If the effective visible length is shorter than this, lines are hidden.")]
     [SerializeField] private float minVisibleLength = 0.05f;
 
     float _nextCheck;
@@ -98,38 +98,34 @@ public class AimLineRenderer : MonoBehaviour
     void OnAimStarted()
     {
         Enable(true);
-        _nextCheck = 0f; // update immediately
+        _nextCheck = 0f;
     }
 
     void OnAimPowerChanged(float powerT)
     {
         if (Time.unscaledTime < _nextCheck) return;
         _nextCheck = Time.unscaledTime + Mathf.Max(0.005f, checkInterval);
-
         if (!lineForce) return;
 
         Vector3 origin = FlattenToPlane(lineForce.IsLocked ? lineForce.LockOrigin : transform.position);
-
         Vector3? hit = CastMouseRay();
         if (!hit.HasValue) return;
 
         Vector3 cursor = FlattenToPlane(hit.Value);
         Vector3 delta = cursor - origin; delta.y = 0f;
 
-        float dist = delta.magnitude;
-        if (dist > 0.0001f) _lastDir = delta / dist;
+        float rawDist = delta.magnitude;
+        if (rawDist > 0.0001f) _lastDir = delta / rawDist;
 
         float maxLen = lineForce.MaxDrawDistance;
-        float clamped = Mathf.Clamp(dist, 0f, maxLen);
+        float clamped = Mathf.Clamp(rawDist, 0f, maxLen);
 
-        // --- Color selection ---
+        // ---- Colors (ghost vs locked) ----
         bool ghost = !lineForce.IsLocked;
 
-        // Fill line: dynamic hue + ghost fade
         Color fillColor = fillGradient.Evaluate(powerT);
         fillColor.a *= ghost ? ghostAlpha : 1f;
 
-        // Outline line: its own gradient + ghost fade + base fade
         Color outlineColor = maxGradient.Evaluate(powerT);
         outlineColor.a *= (ghost ? ghostAlpha : 1f) * maxBaseAlpha;
 
@@ -144,13 +140,23 @@ public class AimLineRenderer : MonoBehaviour
             maxLine.endColor   = outlineColor;
         }
 
-        // --- Geometry ---
-        Draw(fillLine, origin, origin + _lastDir * clamped);
-        Draw(maxLine, origin, origin + _lastDir * maxLen);
+        // ---- Geometry with start offset & non-negative effective lengths ----
+        Vector3 offsetOrigin = origin + _lastDir * startOffset;
 
+        // Ensure we never draw "backwards" toward the ball.
+        float fillEffective   = Mathf.Max(0f, clamped - startOffset);
+        float outlineEffective = Mathf.Max(0f, maxLen  - startOffset);
+
+        Vector3 fillEnd = offsetOrigin + _lastDir * fillEffective;
+        Vector3 maxEnd  = offsetOrigin + _lastDir * outlineEffective;
+
+        Draw(fillLine, offsetOrigin, fillEnd);
+        Draw(maxLine, offsetOrigin, maxEnd);
+
+        // ---- Visibility gate based on effective visible length ----
         if (hideWhenTooShort)
         {
-            bool visible = clamped >= Mathf.Max(minVisibleLength, lineForce.MinDrawDistance * 0.25f);
+            bool visible = fillEffective >= Mathf.Max(minVisibleLength, lineForce.MinDrawDistance * 0.25f);
             if (fillLine) fillLine.enabled = visible;
             if (maxLine)  maxLine.enabled  = visible;
         }
@@ -182,7 +188,7 @@ public class AimLineRenderer : MonoBehaviour
         Vector3 near = new(Input.mousePosition.x, Input.mousePosition.y, camera.nearClipPlane);
         Vector3 far  = new(Input.mousePosition.x, Input.mousePosition.y, camera.farClipPlane);
         Vector3 nearW = camera.ScreenToWorldPoint(near);
-        Vector3 dir   = Camera.main.ScreenToWorldPoint(far) - nearW;
+        Vector3 dir   = camera.ScreenToWorldPoint(far) - nearW;
 
         if (Physics.Raycast(nearW, dir, out RaycastHit hit, float.PositiveInfinity))
             return hit.point;
@@ -192,13 +198,7 @@ public class AimLineRenderer : MonoBehaviour
 
     void ApplyGradients()
     {
-        if (fillLine)
-        {
-            fillLine.colorGradient = fillGradient;
-        }
-        if (maxLine)
-        {
-            maxLine.colorGradient = maxGradient;
-        }
+        if (fillLine) fillLine.colorGradient = fillGradient;
+        if (maxLine)  maxLine.colorGradient  = maxGradient;
     }
 }
