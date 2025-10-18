@@ -308,6 +308,7 @@ GameObject:
   - component: {fileID: 4568963419422181251}
   - component: {fileID: 5311624937001669014}
   - component: {fileID: 7672785592188265784}
+  - component: {fileID: 3513457262458010042}
   m_Layer: 0
   m_Name: PFB_Player_CHAR
   m_TagString: Untagged
@@ -455,6 +456,7 @@ MonoBehaviour:
   lineRenderer: {fileID: 9212280616372087346}
   ghostLineColor: {r: 1, g: 1, b: 1, a: 0.3}
   lockedLineColor: {r: 1, g: 1, b: 1, a: 1}
+  renderLineHere: 0
   camera: {fileID: 0}
   slopeProbe: {fileID: 5311624937001669014}
   settle: {fileID: 7672785592188265784}
@@ -501,6 +503,26 @@ MonoBehaviour:
   speedHysteresis: 0.02
   postShotAimCooldown: 0.35
   debugLogs: 1
+--- !u!114 &3513457262458010042
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5060617610098124407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ddf3463cda3cac44a790a3940eccc67, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lineForce: {fileID: 4568963419422181251}
+  camera: {fileID: 0}
+  fillLine: {fileID: 9212280616372087346}
+  maxLine: {fileID: 3696058520254644666}
+  flattenToY: 0
+  checkInterval: 0.02
+  hideWhenTooShort: 1
+  minVisibleLength: 0.05
 --- !u!1001 &1475429359994576285
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -625,6 +647,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 74798b33f8cb8ce45ab76fc6b5855f39, type: 3}
+--- !u!120 &3696058520254644666 stripped
+LineRenderer:
+  m_CorrespondingSourceObject: {fileID: 7755584791381784495, guid: 74798b33f8cb8ce45ab76fc6b5855f39, type: 3}
+  m_PrefabInstance: {fileID: 6407028951292458517}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &7161129428816034267 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4290566657748946894, guid: 74798b33f8cb8ce45ab76fc6b5855f39, type: 3}

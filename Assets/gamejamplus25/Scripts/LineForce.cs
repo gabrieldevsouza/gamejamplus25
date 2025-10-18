@@ -18,12 +18,14 @@ public class LineForce : MonoBehaviour
     [SerializeField] private LineRenderer lineRenderer;
     [SerializeField] private Color ghostLineColor  = new(1f, 1f, 1f, 0.3f);
     [SerializeField] private Color lockedLineColor = new(1f, 1f, 1f, 1f);
+    [Tooltip("If false, this component won't render the line (external presenter handles visuals).")]
+    [SerializeField] private bool renderLineHere = false;
 
     [Header("Scene")]
     [SerializeField] private Camera camera;
 
     [Header("Refs")]
-    [SerializeField] private SlopeProbe   slopeProbe;
+    [SerializeField] private SlopeProbe    slopeProbe;
     [SerializeField] private SettleManager settle;
 
     [Header("Debug")]
@@ -36,6 +38,12 @@ public class LineForce : MonoBehaviour
     bool _isAiming;
     bool _isLocked;
     public float CurrentPowerT { get; private set; }
+
+    // Public read-only accessors for external presenters
+    public float MinDrawDistance => minDrawDistance;
+    public float MaxDrawDistance => maxDrawDistance;
+    public bool  IsLocked        => _isLocked;
+    public Vector3 LockOrigin    => _lockOrigin;
 
     // UI events
     public event Action        AimStarted;
@@ -51,9 +59,9 @@ public class LineForce : MonoBehaviour
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        if (!camera) camera = Camera.main;
-        if (!slopeProbe)   slopeProbe = GetComponent<SlopeProbe>();
-        if (!settle)       settle     = GetComponent<SettleManager>();
+        if (!camera)     camera     = Camera.main;
+        if (!slopeProbe) slopeProbe = GetComponent<SlopeProbe>();
+        if (!settle)     settle     = GetComponent<SettleManager>();
 
         if (lineRenderer)
         {
@@ -81,7 +89,7 @@ public class LineForce : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             _inputHeld = true;
-            if (!settle.InCooldown && (_canAim) && !_isAiming)
+            if (!settle.InCooldown && _canAim && !_isAiming)
                 BeginAimingStopBall();
         }
 
@@ -123,12 +131,13 @@ public class LineForce : MonoBehaviour
                     _isLocked = false;
                 }
 
+                // Only draw here if this component owns the visuals
                 UpdateLine(_isLocked ? _lockOrigin : FlattenY(transform.position),
                            _cursorWorld,
                            _isLocked ? lockedLineColor : ghostLineColor);
             }
         }
-        else if (lineRenderer && lineRenderer.enabled)
+        else if (renderLineHere && lineRenderer && lineRenderer.enabled)
         {
             lineRenderer.enabled = false;
         }
@@ -186,14 +195,14 @@ public class LineForce : MonoBehaviour
     {
         _isAiming = false;
         _isLocked = false;
-        if (lineRenderer) lineRenderer.enabled = false;
+        if (renderLineHere && lineRenderer) lineRenderer.enabled = false;
         AimEnded?.Invoke();
     }
 
     // --- Rendering & Utils ---
     void UpdateLine(Vector3 origin, Vector3 cursor, Color color)
     {
-        if (!lineRenderer) return;
+        if (!renderLineHere || !lineRenderer) return;
 
         Vector3 delta = cursor - origin;
         float dist = delta.magnitude;
