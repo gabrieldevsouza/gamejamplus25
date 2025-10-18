@@ -306,6 +306,8 @@ GameObject:
   - component: {fileID: 6625527219343629015}
   - component: {fileID: 2053001872007926375}
   - component: {fileID: 4568963419422181251}
+  - component: {fileID: 5311624937001669014}
+  - component: {fileID: 7672785592188265784}
   m_Layer: 0
   m_Name: PFB_Player_CHAR
   m_TagString: Untagged
@@ -444,18 +446,61 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a66bbdac3ac8904bb18e6d451e5cc27, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  velocityToAim: 0.1
-  stopVelocity: 0.05
   minDrawDistance: 2
   maxDrawDistance: 20
-  minShootSpeed: 4
-  maxShootSpeed: 100
+  minShootSpeed: 5
+  maxShootSpeed: 30
   unlockHysteresis: 0.05
   showLineDeadzone: 0.08
   lineRenderer: {fileID: 9212280616372087346}
   ghostLineColor: {r: 1, g: 1, b: 1, a: 0.3}
   lockedLineColor: {r: 1, g: 1, b: 1, a: 1}
   camera: {fileID: 0}
+  slopeProbe: {fileID: 5311624937001669014}
+  settle: {fileID: 7672785592188265784}
+  debugState: 1
+--- !u!114 &5311624937001669014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5060617610098124407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2187bd784f822514598c8df3cb1543fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  slopeAngleThresholdDeg: 1.5
+  minTangentGravity: 0
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  requireGroundedForSlope: 1
+  slopeProbeSkin: 0.02
+  slopeProbeExtra: 0.3
+  slopeProbeRadiusScale: 0.95
+  slopeLatchTime: 0.25
+  debugProbe: 0
+--- !u!114 &7672785592188265784
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5060617610098124407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8ca202407e28c04da94c859f791cce3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  autoStopSpeed: 0.05
+  inputStopSpeed: 0.2
+  autoSettleDelay: 5
+  inputSettleDelay: 3
+  speedHysteresis: 0.02
+  postShotAimCooldown: 0.35
+  debugLogs: 1
 --- !u!1001 &1475429359994576285
 PrefabInstance:
   m_ObjectHideFlags: 0
