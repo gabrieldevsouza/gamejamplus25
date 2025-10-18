@@ -5,21 +5,13 @@ using UnityEngine;
 public class LineForce : MonoBehaviour
 {
     [Header("Movement Gates")]
-    [Tooltip("Natural settle gate. When speed ≤ this, AUTO settle can start.")]
-    [SerializeField] private float autoStopSpeed = 0.05f;
-
-    [Tooltip("Input gate. When speed ≤ this, INPUT settle can start (no click needed).")]
-    [SerializeField] private float inputStopSpeed = 0.2f;
+    [SerializeField] private float autoStopSpeed = 0.05f;  // starts AUTO settle when speed ≤ this
+    [SerializeField] private float inputStopSpeed = 0.2f;  // starts INPUT settle when speed ≤ this
 
     [Header("Settling (seconds)")]
-    [Tooltip("Stay under auto gate for this long → force stop + aim allowed.")]
-    [SerializeField] private float autoSettleDelay = 10f;
-
-    [Tooltip("Stay under input gate for this long → aim allowed (ball still moving until aim starts).")]
-    [SerializeField] private float inputSettleDelay = 1.5f;
-
-    [Tooltip("Extra margin to cancel timers when speed rises above a gate.")]
-    [SerializeField] private float speedHysteresis = 0.01f;
+    [SerializeField] private float autoSettleDelay = 10f;   // after this → force stop + aim allowed
+    [SerializeField] private float inputSettleDelay = 1.5f; // after this → aim allowed (ball still free)
+    [SerializeField] private float speedHysteresis = 0.01f; // cancel timers when speed > gate + hysteresis
 
     [Header("Shot Settings")]
     [SerializeField] private float minDrawDistance = 0.35f;
@@ -42,35 +34,33 @@ public class LineForce : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool debugSpeed = true;
 
-    // --- Internal state ---
+    // Runtime
     private Rigidbody _rb;
 
-    // Input / aim state
+    // Input / Aim
     private bool _inputHeld;
-    private bool _isAiming;
-    private bool _isLocked;
+    private bool _isAiming;     // in ghost/locked aiming mode
+    private bool _isLocked;     // line exceeded min distance
+    public  float CurrentPowerT { get; private set; }
 
-    // Permission flags (either may grant aiming)
-    private bool _canAimFromInput; // granted when input timer completes
-    private bool _canAimFromAuto;  // granted when auto timer completes
+    // UI/FX events (used by PowerUI)
+    public event Action        AimStarted;
+    public event Action<float> AimPowerChanged;
+    public event Action        AimEnded;
 
-    // Auto settle timer
+    // Permissions (granted by timers)
+    private bool _canAimFromInput; // granted when input settle completes
+    private bool _canAimFromAuto;  // granted when auto settle completes
+
+    // Timers
     private bool  _autoSettleActive;
     private float _autoSettleEndTime;
-
-    // Input settle timer
     private bool  _inputSettleActive;
     private float _inputSettleEndTime;
 
-    // Points
+    // Line points
     private Vector3 _cursorWorld;
     private Vector3 _lockOrigin;
-
-    // UI/Event
-    public float CurrentPowerT { get; private set; }
-    public event Action AimStarted;
-    public event Action<float> AimPowerChanged;
-    public event Action AimEnded;
 
     private float _lastDebugTime;
 
@@ -90,16 +80,14 @@ public class LineForce : MonoBehaviour
     {
         float speed = _rb.linearVelocity.magnitude;
 
-        // ── DEBUG ───────────────────────────────────────────────
+        // ── Debug ───────────────────────────────────────────────
         if (debugSpeed && Time.time - _lastDebugTime > 0.1f)
         {
             _lastDebugTime = Time.time;
-
             string timer =
                 _autoSettleActive  ? $"SETTLING_AUTO<th={autoStopSpeed:F2}, rem={Mathf.Max(0f, _autoSettleEndTime - Time.time):F2}s>" :
                 _inputSettleActive ? $"SETTLING_INPUT<th={inputStopSpeed:F2}, rem={Mathf.Max(0f, _inputSettleEndTime - Time.time):F2}s>" :
                 (_canAimFromAuto || _canAimFromInput) ? "IDLE" : "MOVING";
-
             string state = _isAiming ? (_isLocked ? "LOCKED" : "AIMING") : timer;
             Debug.Log($"[LineForce] v={speed:F3} | {state}");
         }
@@ -109,7 +97,7 @@ public class LineForce : MonoBehaviour
         {
             _inputHeld = true;
 
-            // If permission already granted by either timer, enter aim immediately and stop the ball now
+            // If any permission is already granted, enter aim now (and stop the ball at aim start)
             if ((_canAimFromInput || _canAimFromAuto) && !_isAiming)
                 BeginAimingAndStopBall();
         }
@@ -126,7 +114,7 @@ public class LineForce : MonoBehaviour
             }
         }
 
-        // If permission becomes true while holding, slide into aim and stop the ball at aim start
+        // If permission flips true while holding, slide into aiming (stop at aim start)
         if (_inputHeld && (_canAimFromInput || _canAimFromAuto) && !_isAiming)
             BeginAimingAndStopBall();
 
@@ -142,19 +130,18 @@ public class LineForce : MonoBehaviour
                 float rawDist = (_cursorWorld - origin).magnitude;
                 float t = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, Mathf.Min(rawDist, maxDrawDistance));
                 CurrentPowerT = Mathf.Clamp01(t);
-                AimPowerChanged?.Invoke(CurrentPowerT);
+                AimPowerChanged?.Invoke(CurrentPowerT); // 🔔 UI update
 
-                // Lock purely controls visuals now (ball already stopped at aim start)
+                // Lock purely affects visuals now (ball stopped at aim start)
                 if (!_isLocked && rawDist >= minDrawDistance)
                 {
                     _isLocked = true;
                     _lockOrigin = FlattenToBallY(transform.position);
-                    AimStarted?.Invoke();
+                    // We previously raised AimStarted on aim begin, not on lock
                 }
                 else if (_isLocked && rawDist <= minDrawDistance - unlockHysteresis)
                 {
                     _isLocked = false;
-                    AimEnded?.Invoke();
                 }
 
                 UpdatePreviewLine(_isLocked ? _lockOrigin : FlattenToBallY(transform.position),
@@ -162,10 +149,9 @@ public class LineForce : MonoBehaviour
                                   _isLocked ? lockedLineColor : ghostLineColor);
             }
         }
-        else
+        else if (lineRenderer && lineRenderer.enabled)
         {
-            if (lineRenderer && lineRenderer.enabled)
-                lineRenderer.enabled = false;
+            lineRenderer.enabled = false;
         }
     }
 
@@ -173,30 +159,36 @@ public class LineForce : MonoBehaviour
     {
         float speed = _rb.linearVelocity.magnitude;
 
-        // ── INPUT settle: starts automatically at the input gate (no click needed)
+        // ── INPUT settle: auto-starts when speed ≤ input gate (no click needed)
         if (!_isAiming && !_inputSettleActive && !_canAimFromInput && speed <= inputStopSpeed /* && IsOnSlope() later */)
             StartInputSettle();
 
-        // cancel input settle if we leave its window
+        // ── Cancel timers if speed rises above their gates (+ hysteresis)
         if (_inputSettleActive && speed > inputStopSpeed + speedHysteresis)
             CancelInputSettle();
+        if (_autoSettleActive && speed > autoStopSpeed + speedHysteresis)
+            CancelAutoSettle();
 
-        // complete input settle → allow aiming (ball not stopped yet)
+        // ── Revoke INPUT permission if speed rises before aiming starts
+        if (_canAimFromInput && !_isAiming && speed > inputStopSpeed + speedHysteresis)
+        {
+            _canAimFromInput = false;
+            if (debugSpeed) Debug.Log("[LineForce] INPUT permission revoked (speed rose)");
+        }
+
+        // ── INPUT settle completion → aim allowed (ball not stopped yet)
         if (_inputSettleActive && Time.time >= _inputSettleEndTime && speed <= inputStopSpeed)
         {
             _canAimFromInput = true;
             _inputSettleActive = false;
+            if (debugSpeed) Debug.Log("[LineForce] INPUT settle complete (aim allowed)");
         }
 
         // ── AUTO settle: starts at the auto gate
         if (!_isAiming && !_autoSettleActive && !_canAimFromAuto && speed <= autoStopSpeed /* && IsOnSlope() later */)
             StartAutoSettle();
 
-        // cancel auto settle if we leave its window
-        if (_autoSettleActive && speed > autoStopSpeed + speedHysteresis)
-            CancelAutoSettle();
-
-        // complete auto settle → force stop + allow aiming (authoritative)
+        // ── AUTO settle completion → force stop + aim allowed (authoritative)
         if (_autoSettleActive && Time.time >= _autoSettleEndTime && speed <= autoStopSpeed)
         {
             ForceStop();
@@ -205,17 +197,20 @@ public class LineForce : MonoBehaviour
 
             // Auto completion supersedes input settle
             if (_inputSettleActive) CancelInputSettle();
-            _canAimFromInput = true; // aiming allowed in any case
+            _canAimFromInput = true; // allow aim regardless
+
+            if (debugSpeed) Debug.Log("[LineForce] AUTO settle complete (ball stopped)");
         }
     }
 
-    // ── Aim start helper (stops the ball on enter) ─────────────
+    // ── Aim start helper (stops the ball when aiming begins) ──
     private void BeginAimingAndStopBall()
     {
-        ForceStop(); // stop immediately when aiming begins per your spec
+        ForceStop();
         _isAiming = true;
         _isLocked = false;
         CurrentPowerT = 0f;
+        AimStarted?.Invoke(); // 🔔 UI show
     }
 
     // ── Timer helpers ──────────────────────────────────────────
@@ -259,13 +254,13 @@ public class LineForce : MonoBehaviour
         if (rawDist < minDrawDistance) return;
 
         float clamped = Mathf.Min(rawDist, maxDrawDistance);
-        Vector3 dir = (origin - target).normalized; // opposite of pull
+        Vector3 dir = (origin - target).normalized; // shoot opposite of pull
         float t = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, clamped);
         float launchSpeed = Mathf.Lerp(minShootSpeed, maxShootSpeed, t);
 
         _rb.AddForce(dir * (_rb.mass * launchSpeed), ForceMode.Impulse);
 
-        // Reset permissions/timers for next roll
+        // Reset permissions and timers for next roll
         _canAimFromInput = false;
         _canAimFromAuto  = false;
         CancelAutoSettle();
@@ -277,7 +272,7 @@ public class LineForce : MonoBehaviour
         _isAiming = false;
         _isLocked = false;
         if (lineRenderer) lineRenderer.enabled = false;
-        AimEnded?.Invoke();
+        AimEnded?.Invoke(); // 🔔 UI hide
     }
 
     // ── Rendering ──────────────────────────────────────────────
@@ -308,7 +303,7 @@ public class LineForce : MonoBehaviour
     // ── Util ───────────────────────────────────────────────────
     private void ForceStop()
     {
-        _rb.linearVelocity = Vector3.zero;
+        _rb.linearVelocity  = Vector3.zero;
         _rb.angularVelocity = Vector3.zero;
     }
 
@@ -321,13 +316,11 @@ public class LineForce : MonoBehaviour
         Vector3 far  = new(Input.mousePosition.x, Input.mousePosition.y, camera.farClipPlane);
         Vector3 nearW = camera.ScreenToWorldPoint(near);
         Vector3 farW  = camera.ScreenToWorldPoint(far);
-
         if (Physics.Raycast(nearW, farW - nearW, out RaycastHit hit, float.PositiveInfinity))
             return hit.point;
-
         return null;
     }
 
-    // ── Future hook: start timers only on slopes ───────────────
-    // bool IsOnSlope() { return true; } // later: check ground normal or gravity tangent
+    // ── Future: only start timers on slopes ────────────────────
+    // bool IsOnSlope() { return true; /* compute from ground normal later */ }
 }

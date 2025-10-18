@@ -5,74 +5,82 @@ using TMPro;
 public class PowerUI : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private LineForce source;              // drag your player here (or auto-find)
-    [SerializeField] private Image powerFill;               // Image set to 'Filled' (Horizontal)
-    [SerializeField] private TextMeshProUGUI powerText;     // optional
-    [SerializeField] private Gradient powerGradient;        // optional (low→high)
+    [SerializeField] private LineForce lineForce;
+    [SerializeField] private CanvasGroup canvasGroup; // optional for fade/show
+    [SerializeField] private Image fillImage;         // must have a sprite, type=Filled
+    [SerializeField] private TextMeshProUGUI percentText;
+
+    [Header("Behavior")]
+    [SerializeField] private bool hideWhenIdle = true;
 
     private void Reset()
     {
-        // Auto-find a LineForce in scene if not set
-        if (!source) source = FindObjectOfType<LineForce>();
+        lineForce = FindObjectOfType<LineForce>();
+        canvasGroup = GetComponentInChildren<CanvasGroup>();
+        if (!fillImage) fillImage = GetComponentInChildren<Image>();
+        if (!percentText) percentText = GetComponentInChildren<TextMeshProUGUI>();
     }
 
     private void OnEnable()
     {
-        if (!source) source = FindObjectOfType<LineForce>();
-        if (source)
+        if (!lineForce) lineForce = FindObjectOfType<LineForce>();
+        if (lineForce != null)
         {
-            source.AimStarted      += HandleAimStarted;
-            source.AimPowerChanged += HandleAimPowerChanged;
-            source.AimEnded        += HandleAimEnded;
+            lineForce.AimStarted += OnAimStarted;
+            lineForce.AimPowerChanged += OnAimPowerChanged;
+            lineForce.AimEnded += OnAimEnded;
         }
-        Hide();
+
+        if (hideWhenIdle) SetVisible(false);
+        if (fillImage) fillImage.fillAmount = 0f;
+        if (percentText) percentText.text = "0%";
     }
 
     private void OnDisable()
     {
-        if (source)
+        if (lineForce != null)
         {
-            source.AimStarted      -= HandleAimStarted;
-            source.AimPowerChanged -= HandleAimPowerChanged;
-            source.AimEnded        -= HandleAimEnded;
+            lineForce.AimStarted -= OnAimStarted;
+            lineForce.AimPowerChanged -= OnAimPowerChanged;
+            lineForce.AimEnded -= OnAimEnded;
         }
     }
 
-    private void HandleAimStarted()
+    private void OnAimStarted()
     {
-        Show(0f);
+        SetVisible(true);
+        UpdatePower(lineForce != null ? lineForce.CurrentPowerT : 0f);
     }
 
-    private void HandleAimPowerChanged(float t01)
+    private void OnAimPowerChanged(float t)
     {
-        Show(t01);
+        UpdatePower(t);
     }
 
-    private void HandleAimEnded()
+    private void OnAimEnded()
     {
-        Hide();
+        if (hideWhenIdle) SetVisible(false);
+        UpdatePower(0f);
     }
 
-    // ── UI helpers ───────────────────────────────────────────────────────────────
-    private void Show(float t01)
+    private void UpdatePower(float t)
     {
-        if (powerFill)
+        if (fillImage) fillImage.fillAmount = Mathf.Clamp01(t);
+        if (percentText) percentText.text = Mathf.RoundToInt(Mathf.Clamp01(t) * 100f) + "%";
+    }
+
+    private void SetVisible(bool show)
+    {
+        if (canvasGroup)
         {
-            powerFill.fillAmount = Mathf.Clamp01(t01);
-            if (powerGradient != null && (powerGradient.colorKeys.Length > 0 || powerGradient.alphaKeys.Length > 0))
-                powerFill.color = powerGradient.Evaluate(powerFill.fillAmount);
-            if (!powerFill.gameObject.activeSelf) powerFill.gameObject.SetActive(true);
+            canvasGroup.alpha = show ? 1f : 0f;
+            canvasGroup.interactable = show;
+            canvasGroup.blocksRaycasts = show;
         }
-        if (powerText)
+        else if (fillImage)
         {
-            powerText.text = Mathf.RoundToInt(Mathf.Clamp01(t01) * 100f) + "%";
-            if (!powerText.gameObject.activeSelf) powerText.gameObject.SetActive(true);
+            fillImage.enabled = show;
+            if (percentText) percentText.enabled = show;
         }
-    }
-
-    private void Hide()
-    {
-        if (powerFill) { powerFill.fillAmount = 0f; if (powerFill.gameObject.activeSelf) powerFill.gameObject.SetActive(false); }
-        if (powerText) { powerText.text = "0%";     if (powerText.gameObject.activeSelf) powerText.gameObject.SetActive(false); }
     }
 }
