@@ -9,16 +9,12 @@ public class VisionConeMesh : MonoBehaviour
     public int segments = 20;
 
     [Header("Origin")]
-    [Tooltip("Where the cone tip actually is. If null, uses this object’s transform.")]
     public Transform originTransform;
-    [Tooltip("Local-space offset from originTransform to the cone tip (e.g., (0,0.1,0) to lift, (0,0,0.15) to push forward).")]
     public Vector3 localTipOffset = Vector3.zero;
 
     [Header("Detection")]
-    [Tooltip("Player target to detect. If empty, tries tag 'Player' at Start().")]
-    public Transform player;
-    [Tooltip("Layers that block vision (walls/props). If 0, ANY first hit blocks.")]
-    public LayerMask obstructionMask = 0;
+    public Transform player;                 // if null, tries tag "Player"
+    public LayerMask obstructionMask = 0;    // 0 => any first hit blocks
     public float checkInterval = 0.1f;
     public bool debugDraw = true;
 
@@ -53,34 +49,34 @@ public class VisionConeMesh : MonoBehaviour
     {
         if (!player || !originTransform) return;
 
-        // cone tip in world space, from explicit origin + local offset
         Vector3 tip = originTransform.position + originTransform.rotation * localTipOffset;
 
-        Vector3 target = player.position; // center of ball is fine for now
+        Vector3 target = player.position;
         Vector3 toTarget = target - tip;
         float dist = toTarget.magnitude;
 
-        // 1) Strict radius
+        // 1) strict radius
         if (dist > viewRadius) { DrawRay(tip, toTarget.normalized * viewRadius, Color.gray); return; }
 
-        // 2) Angle (flattened) using the cone's forward (this object's forward)
+        // 2) angle (flattened)
         Vector3 fwdFlat = new Vector3(transform.forward.x, 0f, transform.forward.z).normalized;
         Vector3 dirFlat = new Vector3(toTarget.x, 0f, toTarget.z).normalized;
         float cosHalf = Mathf.Cos(viewAngle * 0.5f * Mathf.Deg2Rad);
         if (Vector3.Dot(fwdFlat, dirFlat) < cosHalf) { DrawRay(tip, toTarget.normalized * dist, Color.blue); return; }
 
-        // 3) Line of sight
+        // 3) line of sight
         Vector3 dir = toTarget.normalized;
         float rayLen = Mathf.Min(viewRadius, dist);
 
+        bool seen = false;
+
         if (obstructionMask == 0)
         {
-            // First hit must be the player
             if (Physics.Raycast(tip, dir, out RaycastHit hit, rayLen, ~0, QueryTriggerInteraction.Ignore)
                 && hit.transform == player)
             {
                 DrawRay(tip, dir * hit.distance, Color.green);
-                Debug.Log("[GameOver] Player seen!");
+                seen = true;
             }
             else
             {
@@ -89,7 +85,6 @@ public class VisionConeMesh : MonoBehaviour
         }
         else
         {
-            // Any collider on mask before player blocks
             bool blocked = Physics.Raycast(tip, dir, rayLen, obstructionMask, QueryTriggerInteraction.Ignore);
             if (blocked) { DrawRay(tip, dir * rayLen, Color.red); return; }
 
@@ -97,12 +92,19 @@ public class VisionConeMesh : MonoBehaviour
                 && hit2.transform == player)
             {
                 DrawRay(tip, dir * hit2.distance, Color.green);
-                Debug.Log("[GameOver] Player seen!");
+                seen = true;
             }
             else
             {
                 DrawRay(tip, dir * rayLen, Color.red);
             }
+        }
+
+        if (seen)
+        {
+            // 🔔 SIMPLE GAME OVER
+            if (SimpleGameOver.Instance) SimpleGameOver.Instance.Trigger();
+            else Debug.Log("[GameOver] Player seen! (No SimpleGameOver in scene)");
         }
     }
 
@@ -120,7 +122,7 @@ public class VisionConeMesh : MonoBehaviour
         Vector3[] vertices = new Vector3[segments + 2]; // tip + ring
         int[] triangles = new int[segments * 3];
 
-        vertices[0] = Vector3.zero; // local tip at (0,0,0) of THIS object
+        vertices[0] = Vector3.zero;
 
         float angleStep = viewAngle / segments;
         float halfAngle = viewAngle * 0.5f;
