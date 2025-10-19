@@ -311,7 +311,7 @@ GameObject:
   - component: {fileID: 3513457262458010042}
   m_Layer: 0
   m_Name: PFB_Player_CHAR
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -450,7 +450,7 @@ MonoBehaviour:
   minDrawDistance: 2
   maxDrawDistance: 20
   minShootSpeed: 5
-  maxShootSpeed: 30
+  maxShootSpeed: 60
   unlockHysteresis: 0.05
   showLineDeadzone: 0.08
   lineRenderer: {fileID: 9212280616372087346}
@@ -460,6 +460,7 @@ MonoBehaviour:
   camera: {fileID: 0}
   slopeProbe: {fileID: 5311624937001669014}
   settle: {fileID: 7672785592188265784}
+  projection: {fileID: 0}
   debugState: 1
 --- !u!114 &5311624937001669014
 MonoBehaviour:
