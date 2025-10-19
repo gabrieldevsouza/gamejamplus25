@@ -5,8 +5,8 @@ public class DoorManagement : MonoBehaviour
     [SerializeField] private Transform doorsObjects;
     [SerializeField] private float fadeDuration = 0.03f;
 
-    [Header("UI")]
-    [SerializeField] private KeyCounterUI keyCounter;
+    //[Header("UI")]
+    //[SerializeField] private KeyCounterUI keyCounter;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -15,8 +15,8 @@ public class DoorManagement : MonoBehaviour
             Debug.Log("Player pegou a chave!");
 
             // Atualiza UI
-            if (keyCounter != null)
-                keyCounter.AddKey();
+           // if (keyCounter != null)
+             //   keyCounter.AddKey();
 
             // Esconde visualmente a chave
             HideVisuals();
