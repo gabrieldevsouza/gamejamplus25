@@ -171,10 +171,10 @@ RectTransform:
   - {fileID: 3457858235498403325}
   m_Father: {fileID: 2355082790520964344}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 185.93083}
-  m_SizeDelta: {x: 800, y: 78.1383}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: -39.069153}
+  m_SizeDelta: {x: 800, y: 78.138306}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &753183555577123451
 CanvasRenderer:
@@ -890,6 +890,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5439848029871836655}
     m_Modifications:
+    - target: {fileID: 117768994133381783, guid: ba77dc4c5509f9941931302a4e480f7f, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_StringArgument
+      value: SCN_Level_2
+      objectReference: {fileID: 0}
     - target: {fileID: 963940580299604705, guid: ba77dc4c5509f9941931302a4e480f7f, type: 3}
       propertyPath: m_AnchorMax.y
       value: 1
