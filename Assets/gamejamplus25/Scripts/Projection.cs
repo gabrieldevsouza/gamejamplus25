@@ -18,10 +18,12 @@ public class Projection : MonoBehaviour
     private void Start()
     {
         _rb = GetComponent<Rigidbody>();
+        Vector3 startPos = transform.position;
+        Vector3 startVel = _rb != null ? _rb.linearVelocity : Vector3.zero;
         CreatePhysicsScene();
-        SimulateTrajectory();
-    }
+        SimulateTrajectory(startPos, startVel);
 
+    }
     private void CreatePhysicsScene()
     {
         _simulationScene = SceneManager.CreateScene(
@@ -43,13 +45,13 @@ public class Projection : MonoBehaviour
         }
     }
 
-    public void SimulateTrajectory()
+    public void SimulateTrajectory(Vector3 initialPosition, Vector3 initialVelocity)
     {
-        // Create a ghost copy of THIS sphere inside the simulation scene
-        var ghostSphere = Instantiate(gameObject, transform.position, transform.rotation);
+        // Criar cópia fantasma da esfera
+        var ghostSphere = Instantiate(gameObject, initialPosition, transform.rotation);
         SceneManager.MoveGameObjectToScene(ghostSphere, _simulationScene);
 
-        // Clean up duplicate scripts to avoid recursive behavior in the simulation
+        // Remover scripts Projection
         foreach (var proj in ghostSphere.GetComponents<Projection>())
             DestroyImmediate(proj);
 
@@ -57,9 +59,10 @@ public class Projection : MonoBehaviour
         if (rb == null)
             rb = ghostSphere.AddComponent<Rigidbody>();
 
-        rb.linearVelocity = _rb != null ? _rb.linearVelocity : Vector3.zero;
+        rb.linearVelocity = initialVelocity; // 🔥 agora vem do parâmetro
         rb.useGravity = true;
 
+        _line.enabled = true;
         _line.positionCount = _maxPhysicsFrameIterations;
 
         for (int i = 0; i < _maxPhysicsFrameIterations; i++)
@@ -70,4 +73,14 @@ public class Projection : MonoBehaviour
 
         Destroy(ghostSphere);
     }
+public void ClearLine()
+{
+    if (_line != null)
+    {
+        _line.positionCount = 0;  // limpa os pontos
+        _line.enabled = false;    // esconde completamente
+    }
+}
+
+
 }
