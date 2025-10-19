@@ -975,6 +975,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2657814320686854126, guid: 814b52f661b57074b93f642cbb3bff23, type: 3}
+      propertyPath: Target.TrackingTarget
+      value: 
+      objectReference: {fileID: 2084701552}
     - target: {fileID: 5747778275391055263, guid: 814b52f661b57074b93f642cbb3bff23, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
