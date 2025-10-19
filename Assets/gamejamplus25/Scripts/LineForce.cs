@@ -203,6 +203,7 @@ public class LineForce : MonoBehaviour
         _isLocked = false;
         if (renderLineHere && lineRenderer) lineRenderer.enabled = false;
         AimEnded?.Invoke();
+        projection.ClearLine();
     }
 
     // --- Trajectory Preview ---
