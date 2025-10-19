@@ -1,35 +1,67 @@
 using System;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class LineForce : MonoBehaviour
 {
     [Header("Shot Settings")]
-    [SerializeField] private float shotPower = 10f;
-    [SerializeField] private float stopVelocity = 0.02f;     // When considered fully stopped
-    [SerializeField] private float velocityToAim = 0.5f;     // Can aim at/under this speed
+    [SerializeField] private float minDrawDistance = 0.35f;
+    [SerializeField] private float maxDrawDistance = 5f;
+    [SerializeField] private float minShootSpeed   = 4f;
+    [SerializeField] private float maxShootSpeed   = 20f;
 
-    [Header("Components")]
+    [Header("Draw Hysteresis")]
+    [SerializeField] private float unlockHysteresis = 0.05f;
+
+    [Header("Visual Line")]
+    [SerializeField] private float showLineDeadzone = 0.08f;
     [SerializeField] private LineRenderer lineRenderer;
+    [SerializeField] private Color ghostLineColor  = new(1f, 1f, 1f, 0.3f);
+    [SerializeField] private Color lockedLineColor = new(1f, 1f, 1f, 1f);
+    [Tooltip("If false, this component won't render the line (external presenter handles visuals).")]
+    [SerializeField] private bool renderLineHere = false;
+
+    [Header("Scene")]
     [SerializeField] private Camera camera;
 
-    private Rigidbody _rigidbody;
+    [Header("Refs")]
+    [SerializeField] private SlopeProbe    slopeProbe;
+    [SerializeField] private SettleManager settle;
 
-    private bool _isIdle;
-    private bool _isAiming;
-    private bool _stuckInAim;
+    [Header("Debug")]
+    [SerializeField] private bool debugState = true;
 
-    private Vector3 _lastWorldPoint;
+    Rigidbody _rb;
 
-    private void Awake()
+    // Aim state
+    bool _inputHeld;
+    bool _isAiming;
+    bool _isLocked;
+    public float CurrentPowerT { get; private set; }
+
+    // Public read-only accessors for external presenters
+    public float MinDrawDistance => minDrawDistance;
+    public float MaxDrawDistance => maxDrawDistance;
+    public bool  IsLocked        => _isLocked;
+    public Vector3 LockOrigin    => _lockOrigin;
+
+    // UI events
+    public event Action        AimStarted;
+    public event Action<float> AimPowerChanged;
+    public event Action        AimEnded;
+
+    // Line points
+    Vector3 _cursorWorld;
+    Vector3 _lockOrigin;
+
+    float _lastDbg;
+
+    void Awake()
     {
-        _rigidbody = GetComponent<Rigidbody>();
-
-        _isAiming = false;
-        _isIdle = true;
-        _stuckInAim = false;
-
-        if (!camera)
-            camera = Camera.main;
+        _rb = GetComponent<Rigidbody>();
+        if (!camera)     camera     = Camera.main;
+        if (!slopeProbe) slopeProbe = GetComponent<SlopeProbe>();
+        if (!settle)     settle     = GetComponent<SettleManager>();
 
         if (lineRenderer)
         {
@@ -38,123 +70,176 @@ public class LineForce : MonoBehaviour
         }
     }
 
-    private void Update()
+    void Update()
     {
-        // Start aiming when mouse is pressed and velocity is low enough
-        if (_isIdle && Input.GetMouseButtonDown(0))
+        float speed = _rb.linearVelocity.magnitude;
+
+        if (debugState && Time.time - _lastDbg > 0.1f)
         {
-            _isAiming = true;
-            _stuckInAim = true;
-            Stop(); // 🔸 stop immediately when aiming begins
+            _lastDbg = Time.time;
+            string timers =
+                settle.InCooldown ? $"COOLDOWN {settle.InCooldown}" :
+                (settle.CanAimFromAuto || settle.CanAimFromInput) ? "IDLE" : "MOVING";
+            string where = (slopeProbe && slopeProbe.OnSlopeLatched) ? "SLOPE" : "FLAT";
+            string state = _isAiming ? (_isLocked ? "LOCKED" : "AIMING") : $"{where}/{timers}";
+            Debug.Log($"[LineForce] v={speed:F3} | {state}");
         }
 
-        // While aiming, update line and shoot when mouse released
+        // Input edges
+        if (Input.GetMouseButtonDown(0))
+        {
+            _inputHeld = true;
+            if (!settle.InCooldown && _canAim && !_isAiming)
+                BeginAimingStopBall();
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            _inputHeld = false;
+            if (_isAiming)
+            {
+                if (_isLocked) TryShoot(_lockOrigin, _cursorWorld);
+                EndAim();
+            }
+        }
+
+        // Enter aim if permission toggles true while holding
+        if (_inputHeld && !_isAiming && !settle.InCooldown && _canAim)
+            BeginAimingStopBall();
+
+        // Aiming
         if (_isAiming)
         {
-            Vector3? worldPoint = CastMouseClickRay();
-            if (worldPoint.HasValue)
+            Vector3? hit = CastMouseClickRay();
+            if (hit.HasValue)
             {
-                _lastWorldPoint = worldPoint.Value;
-                DrawLine(_lastWorldPoint);
-            }
-            else
-            {
-                if (lineRenderer && lineRenderer.enabled)
-                    lineRenderer.enabled = false;
-            }
+                _cursorWorld = FlattenY(hit.Value);
+                Vector3 origin = _isLocked ? _lockOrigin : FlattenY(transform.position);
 
-            if (Input.GetMouseButtonUp(0))
-            {
-                Shoot(_lastWorldPoint);
+                float raw = (_cursorWorld - origin).magnitude;
+                float t   = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, Mathf.Min(raw, maxDrawDistance));
+                CurrentPowerT = Mathf.Clamp01(t);
+                AimPowerChanged?.Invoke(CurrentPowerT);
+
+                if (!_isLocked && raw >= minDrawDistance)
+                {
+                    _isLocked   = true;
+                    _lockOrigin = FlattenY(transform.position);
+                }
+                else if (_isLocked && raw <= minDrawDistance - unlockHysteresis)
+                {
+                    _isLocked = false;
+                }
+
+                // Only draw here if this component owns the visuals
+                UpdateLine(_isLocked ? _lockOrigin : FlattenY(transform.position),
+                           _cursorWorld,
+                           _isLocked ? lockedLineColor : ghostLineColor);
             }
         }
-        else
+        else if (renderLineHere && lineRenderer && lineRenderer.enabled)
         {
-            if (lineRenderer && lineRenderer.enabled)
-                lineRenderer.enabled = false;
+            lineRenderer.enabled = false;
         }
     }
 
-    private void FixedUpdate()
+    void FixedUpdate()
     {
-        float currentSpeed = _rigidbody.linearVelocity.magnitude;
+        float speed = _rb.linearVelocity.magnitude;
 
-        // Allow aiming when below velocityToAim
-        _isIdle = currentSpeed <= velocityToAim;
+        // Update slope probe and settle logic
+        if (slopeProbe) slopeProbe.FixedStep();
+        bool onSlope = slopeProbe ? slopeProbe.OnSlopeLatched : false;
 
-        // If almost stopped, ensure full stop
-        if (currentSpeed < stopVelocity)
+        if (settle)
+            settle.FixedStep(speed, onSlope, _inputHeld, _isAiming);
+
+        // If auto settle completed on slope, LineForce is the one that actually stops (authoritative intent)
+        if (!_isAiming && settle && settle.CanAimFromAuto && !settle.InCooldown)
         {
-            Stop();
+            ForceStop();
+            // leave permissions as-is; user can aim any time
         }
     }
 
-    private void Shoot(Vector3 worldPoint)
+    bool _canAim => (settle && (settle.CanAimFromInput || settle.CanAimFromAuto));
+
+    // --- Aim & Shoot ---
+    void BeginAimingStopBall()
+    {
+        ForceStop();
+        _isAiming = true;
+        _isLocked = false;
+        CurrentPowerT = 0f;
+        AimStarted?.Invoke();
+    }
+
+    void TryShoot(Vector3 origin, Vector3 target)
+    {
+        Vector3 delta = target - origin;
+        float raw = delta.magnitude;
+        if (raw < minDrawDistance) return;
+
+        float clamped = Mathf.Min(raw, maxDrawDistance);
+        Vector3 dir = (origin - target).normalized; // opposite pull
+        float   t   = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, clamped);
+        float launchSpeed = Mathf.Lerp(minShootSpeed, maxShootSpeed, t);
+
+        _rb.AddForce(dir * (_rb.mass * launchSpeed), ForceMode.Impulse);
+
+        // Reset settle permissions and start cooldown
+        if (settle) settle.BeginShotCooldown();
+    }
+
+    void EndAim()
     {
         _isAiming = false;
-        _stuckInAim = false;
-
-        if (lineRenderer) lineRenderer.enabled = false;
-
-        // Flatten aim to horizontal plane
-        var horizontalWorldPoint = new Vector3(worldPoint.x, transform.position.y, worldPoint.z);
-
-        Vector3 direction = (horizontalWorldPoint - transform.position).normalized;
-        float strength = Vector3.Distance(transform.position, horizontalWorldPoint);
-
-        _isIdle = false;
-
-        _rigidbody.AddForce(direction * (strength * shotPower), ForceMode.Impulse);
+        _isLocked = false;
+        if (renderLineHere && lineRenderer) lineRenderer.enabled = false;
+        AimEnded?.Invoke();
     }
 
-    private void DrawLine(Vector3 worldPoint)
+    // --- Rendering & Utils ---
+    void UpdateLine(Vector3 origin, Vector3 cursor, Color color)
     {
-        if (!lineRenderer) return;
+        if (!renderLineHere || !lineRenderer) return;
 
-        if (lineRenderer.positionCount != 2)
-            lineRenderer.positionCount = 2;
+        Vector3 delta = cursor - origin;
+        float dist = delta.magnitude;
+        if (dist < showLineDeadzone)
+        {
+            if (lineRenderer.enabled) lineRenderer.enabled = false;
+            return;
+        }
 
-        Vector3[] positions = {
-            transform.position,
-            worldPoint
-        };
+        Vector3 dir = delta.normalized;
+        Vector3 end = origin + dir * Mathf.Min(dist, maxDrawDistance);
 
-        lineRenderer.SetPositions(positions);
+        if (lineRenderer.positionCount != 2) lineRenderer.positionCount = 2;
+        lineRenderer.SetPosition(0, transform.position);
+        lineRenderer.SetPosition(1, end);
+        lineRenderer.startColor = color;
+        lineRenderer.endColor   = color;
         lineRenderer.enabled = true;
     }
 
-    private void Stop()
+    void ForceStop()
     {
-        _rigidbody.linearVelocity = Vector3.zero;
-        _rigidbody.angularVelocity = Vector3.zero;
-        _isIdle = true;
+        _rb.linearVelocity  = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
     }
 
-    private Vector3? CastMouseClickRay()
+    Vector3 FlattenY(Vector3 v) => new(v.x, transform.position.y, v.z);
+
+    Vector3? CastMouseClickRay()
     {
         if (!camera) return null;
-
-        Vector3 screenMousePosFar = new Vector3(
-            Input.mousePosition.x,
-            Input.mousePosition.y,
-            camera.farClipPlane);
-
-        Vector3 screenMousePosNear = new Vector3(
-            Input.mousePosition.x,
-            Input.mousePosition.y,
-            camera.nearClipPlane);
-
-        Vector3 worldMousePosFar = camera.ScreenToWorldPoint(screenMousePosFar);
-        Vector3 worldMousePosNear = camera.ScreenToWorldPoint(screenMousePosNear);
-
-        RaycastHit hit;
-        if (Physics.Raycast(worldMousePosNear, worldMousePosFar - worldMousePosNear, out hit, float.PositiveInfinity))
-        {
+        Vector3 near = new(Input.mousePosition.x, Input.mousePosition.y, camera.nearClipPlane);
+        Vector3 far  = new(Input.mousePosition.x, Input.mousePosition.y, camera.farClipPlane);
+        Vector3 nearW = camera.ScreenToWorldPoint(near);
+        Vector3 farW  = camera.ScreenToWorldPoint(far);
+        if (Physics.Raycast(nearW, farW - nearW, out RaycastHit hit, float.PositiveInfinity))
             return hit.point;
-        }
-        else
-        {
-            return null;
-        }
+        return null;
     }
 }
