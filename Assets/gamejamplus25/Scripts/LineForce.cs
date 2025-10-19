@@ -27,8 +27,9 @@ public class LineForce : MonoBehaviour
     [Header("Refs")]
     [SerializeField] private SlopeProbe    slopeProbe;
     [SerializeField] private SettleManager settle;
-    
-    [SerializeField] Projection projection;
+
+    // Trajectory preview component (optional)
+    [SerializeField] private Projection projection;
 
     [Header("Debug")]
     [SerializeField] private bool debugState = true;
@@ -133,8 +134,11 @@ public class LineForce : MonoBehaviour
                     _isLocked = false;
                 }
 
+                // Preview trajectory using the same mapping as the real shot
+                UpdateTrajectoryPrediction(origin, _cursorWorld, CurrentPowerT);
+
                 // Only draw here if this component owns the visuals
-                UpdateLine(_isLocked ? _lockOrigin : FlattenY(transform.position),
+                UpdateLine(origin,
                            _cursorWorld,
                            _isLocked ? lockedLineColor : ghostLineColor);
             }
@@ -199,6 +203,30 @@ public class LineForce : MonoBehaviour
         _isLocked = false;
         if (renderLineHere && lineRenderer) lineRenderer.enabled = false;
         AimEnded?.Invoke();
+    }
+
+    // --- Trajectory Preview ---
+    // Computes the same initial velocity as the real shot and feeds the Projection.
+    void UpdateTrajectoryPrediction(Vector3 origin, Vector3 cursor, float powerT)
+    {
+        if (!projection) return;
+
+        Vector3 delta = cursor - origin;
+        float raw = delta.magnitude;
+        if (raw < showLineDeadzone) return; // too tiny, skip preview
+
+        // Direction is opposite to the pull (same as TryShoot)
+        Vector3 dir = (origin - cursor).normalized;
+
+        // Use the same speed mapping used for impulses
+        float clamped = Mathf.Min(raw, maxDrawDistance);
+        float t = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, clamped);
+        float launchSpeed = Mathf.Lerp(minShootSpeed, maxShootSpeed, Mathf.Clamp01(t));
+
+        // Estimated initial velocity for the preview (velocity, not impulse)
+        Vector3 estimatedVelocity = dir * launchSpeed;
+
+        projection.SimulateTrajectory(origin, estimatedVelocity);
     }
 
     // --- Rendering & Utils ---
