@@ -450,7 +450,7 @@ MonoBehaviour:
   minDrawDistance: 2
   maxDrawDistance: 20
   minShootSpeed: 5
-  maxShootSpeed: 30
+  maxShootSpeed: 60
   unlockHysteresis: 0.05
   showLineDeadzone: 0.08
   lineRenderer: {fileID: 9212280616372087346}
