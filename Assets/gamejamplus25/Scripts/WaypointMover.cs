@@ -4,7 +4,6 @@ using System.Collections;
 [RequireComponent(typeof(Rigidbody))]
 public class WaypointMover : MonoBehaviour
 {
-    [Header("Path")]
     public Transform[] waypoints;
     public float speed = 8f;
     public float rotationSpeed = 5f;
@@ -14,24 +13,14 @@ public class WaypointMover : MonoBehaviour
 
     [Header("Feixe de Visão")]
     public float viewRadius = 5f;
-    [Range(0, 360)] public float viewAngle = 45f;
+    [Range(0, 360)]
+    public float viewAngle = 45f;
     public int segments = 20;
-    public MeshFilter visionConeMesh;
+    public MeshFilter visionConeMesh; // Arraste o MeshFilter do objeto VisionCone aqui
 
-    [Header("Detecção")]
-    [Tooltip("Layers that block vision (walls, props). If empty, ANY collider blocks.")]
-    public LayerMask obstructionMask;
-    public Transform player;                 // arraste o player aqui
-    public float checkInterval = 0.1f;
-    [Tooltip("Ray starts a bit above and in front to avoid hitting own collider.")]
-    public float eyeHeight = 0.6f;
-    public float eyeForwardOffset = 0.2f;
-    public bool debugDraw = true;
-
-    int currentIndex = 0;
-    Rigidbody rb;
-    bool isWaiting = false;
-    float _nextCheck;
+    private int currentIndex = 0;
+    private Rigidbody rb;
+    private bool isWaiting = false;
 
     void Start()
     {
@@ -43,7 +32,8 @@ public class WaypointMover : MonoBehaviour
             currentIndex = 1 % waypoints.Length;
         }
 
-        if (randomizeSpeed) speed *= Random.Range(2f, 2.5f);
+        if (randomizeSpeed)
+            speed *= Random.Range(2f, 2.5f);
 
         BuildConeMesh();
     }
@@ -51,13 +41,8 @@ public class WaypointMover : MonoBehaviour
     void FixedUpdate()
     {
         MoveAlongWaypoints();
+        // Atualiza o mesh caso queira dinâmica (não necessário se cone fixo)
         BuildConeMesh();
-
-        if (Time.time >= _nextCheck)
-        {
-            _nextCheck = Time.time + Mathf.Max(0.02f, checkInterval);
-            CheckPlayerInView();
-        }
     }
 
     void MoveAlongWaypoints()
@@ -93,53 +78,6 @@ public class WaypointMover : MonoBehaviour
         isWaiting = false;
     }
 
-    void CheckPlayerInView()
-    {
-        if (!player) return;
-
-        // Distance & angle (flattened)
-        Vector3 toPlayer = player.position - transform.position;
-        Vector3 toPlayerFlat = new Vector3(toPlayer.x, 0f, toPlayer.z);
-        float dist = toPlayerFlat.magnitude;
-        if (dist > viewRadius) return;
-
-        float angle = Vector3.Angle(transform.forward, toPlayerFlat.normalized);
-        if (angle > viewAngle * 0.5f) return;
-
-        // Eye origin slightly offset to avoid self-hit
-        Vector3 eye = transform.position + Vector3.up * eyeHeight + transform.forward * eyeForwardOffset;
-        Vector3 dir = (player.position + Vector3.up * 0.5f - eye).normalized;
-
-        // Raycast: treat any collider in front as blocking (unless it's the player)
-        if (Physics.Raycast(eye, dir, out RaycastHit hit, viewRadius, ~0, QueryTriggerInteraction.Ignore))
-        {
-            bool blockedByMask = obstructionMask != 0 &&
-                                 ((1 << hit.collider.gameObject.layer) & obstructionMask) != 0;
-
-            if (hit.transform == player)
-            {
-                if (debugDraw) Debug.DrawRay(eye, dir * dist, Color.green, checkInterval);
-                Debug.Log($"[GameOver] Player seen by {name}!");
-            }
-            else
-            {
-                // If mask set → only those layers block. If mask empty → anything blocks.
-                bool blocks = (obstructionMask == 0) ? true : blockedByMask;
-                if (debugDraw) Debug.DrawRay(eye, dir * Mathf.Min(viewRadius, (player.position - eye).magnitude), Color.red, checkInterval);
-                if (!blocks)
-                {
-                    // try see past the hit (rare): cast to player directly and check clear
-                    float toPlayerDist = Vector3.Distance(eye, player.position);
-                    if (!Physics.Raycast(eye, dir, toPlayerDist, obstructionMask, QueryTriggerInteraction.Ignore))
-                    {
-                        if (debugDraw) Debug.DrawRay(eye, dir * dist, Color.green, checkInterval);
-                        Debug.Log($"[GameOver] Player seen by {name}!");
-                    }
-                }
-            }
-        }
-    }
-
     void BuildConeMesh()
     {
         if (!visionConeMesh) return;
@@ -148,7 +86,8 @@ public class WaypointMover : MonoBehaviour
         Vector3[] vertices = new Vector3[segments + 2];
         int[] triangles = new int[segments * 3];
 
-        vertices[0] = Vector3.zero;
+        vertices[0] = Vector3.zero; // topo
+
         float angleStep = viewAngle / segments;
         float halfAngle = viewAngle / 2f;
 
