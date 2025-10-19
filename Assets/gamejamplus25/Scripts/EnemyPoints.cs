@@ -14,7 +14,7 @@ public class EnemyPoints : MonoBehaviour
             scored = true;
             ScoreManager.scoreManagerInstance.AddScore(enemyPointsValue);
             
-            Destroy(gameObject);
+            //Destroy(gameObject);
         }
     }
 }
