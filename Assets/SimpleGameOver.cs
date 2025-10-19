@@ -49,7 +49,7 @@ public class SimpleGameOver : MonoBehaviour
         if (losePanel) losePanel.SetActive(true);
         else Debug.LogWarning("[GameOver] No Lose Panel assigned to SimpleGameOver.");
 
-        if (pauseOnGameOver) Time.timeScale = 0f;
+        //if (pauseOnGameOver) Time.timeScale = 0f;
 
         Debug.Log("[GameOver] Player seen! Game Over triggered.");
     }

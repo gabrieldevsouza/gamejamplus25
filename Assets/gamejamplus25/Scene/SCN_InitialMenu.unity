@@ -380,6 +380,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4861622159013069726, guid: 05309207833031246970e91b9041c836, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4861622159013069726, guid: 05309207833031246970e91b9041c836, type: 3}
       propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
@@ -394,6 +398,10 @@ PrefabInstance:
     - target: {fileID: 5887614791954952687, guid: 05309207833031246970e91b9041c836, type: 3}
       propertyPath: m_SizeDelta.x
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6985731785359551139, guid: 05309207833031246970e91b9041c836, type: 3}
+      propertyPath: sceneToLoad
+      value: SCN_StageSelect_UI
       objectReference: {fileID: 0}
     - target: {fileID: 7839648868019124820, guid: 05309207833031246970e91b9041c836, type: 3}
       propertyPath: m_AnchorMax.y
