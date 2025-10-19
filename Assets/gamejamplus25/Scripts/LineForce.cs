@@ -27,6 +27,8 @@ public class LineForce : MonoBehaviour
     [Header("Refs")]
     [SerializeField] private SlopeProbe    slopeProbe;
     [SerializeField] private SettleManager settle;
+    
+    [SerializeField] Projection projection;
 
     [Header("Debug")]
     [SerializeField] private bool debugState = true;
