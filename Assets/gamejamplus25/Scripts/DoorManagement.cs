@@ -3,15 +3,22 @@ using UnityEngine;
 public class DoorManagement : MonoBehaviour
 {
     [SerializeField] private Transform doorsObjects;
-    [SerializeField] private float fadeDuration = 0.01f; // Duration in seconds
+    [SerializeField] private float fadeDuration = 0.03f;
 
-    private void OnTriggerEnter(Collider other) 
+    [Header("UI")]
+    [SerializeField] private KeyCounterUI keyCounter;
+
+    private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
             Debug.Log("Player pegou a chave!");
 
-            // Deixar visual da chave invisível imediatamente
+            // Atualiza UI
+            if (keyCounter != null)
+                keyCounter.AddKey();
+
+            // Esconde visualmente a chave
             HideVisuals();
 
             // Abrir portas
@@ -24,26 +31,21 @@ public class DoorManagement : MonoBehaviour
 
     private void HideVisuals()
     {
-        // Desliga todos os renderers do objeto (incluindo filhos)
         Renderer[] renderers = GetComponentsInChildren<Renderer>();
         foreach (Renderer rend in renderers)
-        {
             rend.enabled = false;
-        }
     }
 
     private void openAll()
     {
         foreach (Transform door in doorsObjects)
-        {
             StartCoroutine(FadeAndDestroy(door.gameObject));
-        }
     }
 
     private System.Collections.IEnumerator FadeAndDestroy(GameObject door)
     {
         Renderer renderer = door.GetComponent<Renderer>();
-        Material material = renderer.material; // Use instance, not shared
+        Material material = renderer.material;
         Color color = material.color;
 
         float startAlpha = color.a;
@@ -58,7 +60,6 @@ public class DoorManagement : MonoBehaviour
             yield return null;
         }
 
-        // Ensure it's fully transparent
         color.a = 0f;
         material.color = color;
 
