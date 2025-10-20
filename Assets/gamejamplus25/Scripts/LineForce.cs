@@ -21,15 +21,23 @@ public class LineForce : MonoBehaviour
     [Tooltip("If false, this component won't render the line (external presenter handles visuals).")]
     [SerializeField] private bool renderLineHere = false;
 
+    [Header("Aiming Space (no colliders used)")]
+    [SerializeField] private float aimPlaneYOffset = 0f;
+    [SerializeField] private float parallelRayFallbackDistance = 20f;
+
+    [Header("Aim Start Gate")]
+    [Tooltip("Press must begin within this screen distance (pixels) from the ball to start aiming.")]
+    [SerializeField] private float aimStartRadiusScreenPx = 120f;
+    [Tooltip("If disabled, any press can start aiming (old behavior).")]
+    [SerializeField] private bool requireNearPressToStartAim = true;
+
     [Header("Scene")]
     [SerializeField] private Camera camera;
 
     [Header("Refs")]
     [SerializeField] private SlopeProbe    slopeProbe;
     [SerializeField] private SettleManager settle;
-
-    // Trajectory preview component (optional)
-    [SerializeField] private Projection projection;
+    [SerializeField] private Projection    projection;
 
     [Header("Debug")]
     [SerializeField] private bool debugState = true;
@@ -42,11 +50,14 @@ public class LineForce : MonoBehaviour
     bool _isLocked;
     public float CurrentPowerT { get; private set; }
 
-    // Public read-only accessors for external presenters
-    public float MinDrawDistance => minDrawDistance;
-    public float MaxDrawDistance => maxDrawDistance;
-    public bool  IsLocked        => _isLocked;
-    public Vector3 LockOrigin    => _lockOrigin;
+    // --- Public data access for external presenters/UI ---
+    public bool   IsAiming          => _isAiming;
+    public bool   IsLocked          => _isLocked;
+    public Vector3 CursorWorld      => _cursorWorld;
+    public Vector3 CurrentAimOrigin => _isLocked ? _lockOrigin : FlattenY(transform.position);
+    public float  MinDrawDistance   => minDrawDistance;
+    public float  MaxDrawDistance   => maxDrawDistance;
+    public Vector3 LockOrigin       => _lockOrigin;
 
     // UI events
     public event Action        AimStarted;
@@ -59,7 +70,7 @@ public class LineForce : MonoBehaviour
 
     float _lastDbg;
 
-    // --- Pointer adapter (mouse or single-touch) ---
+    // Pointer adapter
     Vector2 _pointerPos;
     bool _pointerDownThisFrame;
     bool _pointerUpThisFrame;
@@ -81,27 +92,28 @@ public class LineForce : MonoBehaviour
 
     void Update()
     {
-        PollPrimaryPointer(); // unified input
-
-        float speed = _rb.linearVelocity.magnitude;
+        PollPrimaryPointer();
 
         if (debugState && Time.time - _lastDbg > 0.1f)
         {
             _lastDbg = Time.time;
-            string timers =
-                settle.InCooldown ? $"COOLDOWN {settle.InCooldown}" :
-                (settle.CanAimFromAuto || settle.CanAimFromInput) ? "IDLE" : "MOVING";
+            float speed = _rb.linearVelocity.magnitude;
+            string timers = settle && settle.InCooldown ? $"COOLDOWN {settle.InCooldown}" :
+                             (settle && (settle.CanAimFromAuto || settle.CanAimFromInput)) ? "IDLE" : "MOVING";
             string where = (slopeProbe && slopeProbe.OnSlopeLatched) ? "SLOPE" : "FLAT";
             string state = _isAiming ? (_isLocked ? "LOCKED" : "AIMING") : $"{where}/{timers}";
             Debug.Log($"[LineForce] v={speed:F3} | {state}");
         }
 
-        // Input edges
+        // edges
         if (_pointerDownThisFrame)
         {
             _inputHeld = true;
             if (!settle.InCooldown && _canAim && !_isAiming)
-                BeginAimingStopBall();
+            {
+                if (!requireNearPressToStartAim || IsPointerNearBall(_pointerPos))
+                    BeginAimingStopBall();
+            }
         }
 
         if (_pointerUpThisFrame)
@@ -114,42 +126,40 @@ public class LineForce : MonoBehaviour
             }
         }
 
-        // Enter aim if permission toggles true while holding
+        // Permission toggled true while holding
         if (_pointerHeld && !_isAiming && !settle.InCooldown && _canAim)
-            BeginAimingStopBall();
+        {
+            if (!requireNearPressToStartAim || IsPointerNearBall(_pointerPos))
+                BeginAimingStopBall();
+        }
 
-        // Aiming
+        // aiming
         if (_isAiming)
         {
-            Vector3? hit = CastPointerRay(_pointerPos);
-            if (hit.HasValue)
+            Vector3 aimPoint = GetAimPointOnPlane(_pointerPos);
+            _cursorWorld = FlattenY(aimPoint);
+            Vector3 origin = _isLocked ? _lockOrigin : FlattenY(transform.position);
+
+            float raw = (_cursorWorld - origin).magnitude;
+            float t   = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, Mathf.Min(raw, maxDrawDistance));
+            CurrentPowerT = Mathf.Clamp01(t);
+            AimPowerChanged?.Invoke(CurrentPowerT);
+
+            if (!_isLocked && raw >= minDrawDistance)
             {
-                _cursorWorld = FlattenY(hit.Value);
-                Vector3 origin = _isLocked ? _lockOrigin : FlattenY(transform.position);
-
-                float raw = (_cursorWorld - origin).magnitude;
-                float t   = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, Mathf.Min(raw, maxDrawDistance));
-                CurrentPowerT = Mathf.Clamp01(t);
-                AimPowerChanged?.Invoke(CurrentPowerT);
-
-                if (!_isLocked && raw >= minDrawDistance)
-                {
-                    _isLocked   = true;
-                    _lockOrigin = FlattenY(transform.position);
-                }
-                else if (_isLocked && raw <= minDrawDistance - unlockHysteresis)
-                {
-                    _isLocked = false;
-                }
-
-                // Preview trajectory using the same mapping as the real shot
-                UpdateTrajectoryPrediction(origin, _cursorWorld, CurrentPowerT);
-
-                // Only draw here if this component owns the visuals
-                UpdateLine(origin,
-                           _cursorWorld,
-                           _isLocked ? lockedLineColor : ghostLineColor);
+                _isLocked   = true;
+                _lockOrigin = FlattenY(transform.position);
             }
+            else if (_isLocked && raw <= minDrawDistance - unlockHysteresis)
+            {
+                _isLocked = false;
+            }
+
+            UpdateTrajectoryPrediction(origin, _cursorWorld, CurrentPowerT);
+
+            UpdateLine(origin,
+                       _cursorWorld,
+                       _isLocked ? lockedLineColor : ghostLineColor);
         }
         else if (renderLineHere && lineRenderer && lineRenderer.enabled)
         {
@@ -160,20 +170,12 @@ public class LineForce : MonoBehaviour
     void FixedUpdate()
     {
         float speed = _rb.linearVelocity.magnitude;
-
-        // Update slope probe and settle logic
         if (slopeProbe) slopeProbe.FixedStep();
         bool onSlope = slopeProbe ? slopeProbe.OnSlopeLatched : false;
+        if (settle) settle.FixedStep(speed, onSlope, _inputHeld, _isAiming);
 
-        if (settle)
-            settle.FixedStep(speed, onSlope, _inputHeld, _isAiming);
-
-        // If auto settle completed on slope, LineForce is the one that actually stops (authoritative intent)
         if (!_isAiming && settle && settle.CanAimFromAuto && !settle.InCooldown)
-        {
             ForceStop();
-            // leave permissions as-is; user can aim any time
-        }
     }
 
     bool _canAim => (settle && (settle.CanAimFromInput || settle.CanAimFromAuto));
@@ -195,13 +197,12 @@ public class LineForce : MonoBehaviour
         if (raw < minDrawDistance) return;
 
         float clamped = Mathf.Min(raw, maxDrawDistance);
-        Vector3 dir = (origin - target).normalized; // opposite pull
+        Vector3 dir = (origin - target).normalized;
         float   t   = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, clamped);
         float launchSpeed = Mathf.Lerp(minShootSpeed, maxShootSpeed, t);
 
         _rb.AddForce(dir * (_rb.mass * launchSpeed), ForceMode.Impulse);
 
-        // Reset settle permissions and start cooldown
         if (settle) settle.BeginShotCooldown();
     }
 
@@ -221,19 +222,15 @@ public class LineForce : MonoBehaviour
 
         Vector3 delta = cursor - origin;
         float raw = delta.magnitude;
-        if (raw < showLineDeadzone) return; // too tiny, skip preview
+        if (raw < showLineDeadzone) return;
 
-        // Direction is opposite to the pull (same as TryShoot)
         Vector3 dir = (origin - cursor).normalized;
 
-        // Use the same speed mapping used for impulses
         float clamped = Mathf.Min(raw, maxDrawDistance);
         float t = Mathf.InverseLerp(minDrawDistance, maxDrawDistance, clamped);
         float launchSpeed = Mathf.Lerp(minShootSpeed, maxShootSpeed, Mathf.Clamp01(t));
 
-        // Estimated initial velocity for the preview (velocity, not impulse)
         Vector3 estimatedVelocity = dir * launchSpeed;
-
         projection.SimulateTrajectory(origin, estimatedVelocity);
     }
 
@@ -269,53 +266,67 @@ public class LineForce : MonoBehaviour
 
     Vector3 FlattenY(Vector3 v) => new(v.x, transform.position.y, v.z);
 
-    // --- Unified pointer input ---
+    // --- Input ---
     void PollPrimaryPointer()
     {
         _pointerDownThisFrame = false;
         _pointerUpThisFrame   = false;
 
-        // TOUCH (mobile)
         if (Input.touchSupported && Input.touchCount > 0)
         {
             Touch t = Input.GetTouch(0);
             _pointerPos = t.position;
-
             switch (t.phase)
             {
-                case TouchPhase.Began:
-                    _pointerHeld = true;
-                    _pointerDownThisFrame = true;
-                    break;
+                case TouchPhase.Began: _pointerHeld = true; _pointerDownThisFrame = true; break;
                 case TouchPhase.Moved:
-                case TouchPhase.Stationary:
-                    _pointerHeld = true;
-                    break;
+                case TouchPhase.Stationary: _pointerHeld = true; break;
                 case TouchPhase.Ended:
-                case TouchPhase.Canceled:
-                    _pointerHeld = false;
-                    _pointerUpThisFrame = true;
-                    break;
+                case TouchPhase.Canceled: _pointerHeld = false; _pointerUpThisFrame = true; break;
             }
             return;
         }
 
-        // MOUSE (editor/desktop)
         _pointerPos = Input.mousePosition;
         _pointerDownThisFrame = Input.GetMouseButtonDown(0);
         _pointerUpThisFrame   = Input.GetMouseButtonUp(0);
         _pointerHeld          = Input.GetMouseButton(0);
     }
 
-    Vector3? CastPointerRay(Vector2 screenPos)
+    // --- Strict plane aim (NO Physics) ---
+    Vector3 GetAimPointOnPlane(Vector2 screenPos)
     {
-        if (!camera) return null;
-        Vector3 near = new(screenPos.x, screenPos.y, camera.nearClipPlane);
-        Vector3 far  = new(screenPos.x, screenPos.y, camera.farClipPlane);
-        Vector3 nearW = camera.ScreenToWorldPoint(near);
-        Vector3 farW  = camera.ScreenToWorldPoint(far);
-        if (Physics.Raycast(nearW, farW - nearW, out RaycastHit hit, float.PositiveInfinity))
-            return hit.point;
-        return null;
+        if (!camera) camera = Camera.main;
+        if (!camera) return transform.position;
+
+        float planeY = transform.position.y + aimPlaneYOffset;
+        Ray ray = camera.ScreenPointToRay(screenPos);
+
+        float denom = ray.direction.y;
+        if (Mathf.Abs(denom) >= 1e-4f)
+        {
+            float t = (planeY - ray.origin.y) / denom;
+            if (t < 0f) t = 0.01f;
+            return ray.origin + ray.direction * t;
+        }
+        else
+        {
+            Vector3 p = ray.origin + ray.direction * Mathf.Max(0.5f, parallelRayFallbackDistance);
+            p.y = planeY;
+            return p;
+        }
+    }
+
+    // --- Gate helper ---
+    bool IsPointerNearBall(Vector2 screenPos)
+    {
+        if (!camera) camera = Camera.main;
+        if (!camera) return true; // if we can't evaluate, don't block
+
+        Vector3 ballSS = camera.WorldToScreenPoint(transform.position);
+        if (ballSS.z < 0f) return false; // behind camera
+
+        float dist = Vector2.Distance(new Vector2(ballSS.x, ballSS.y), screenPos);
+        return dist <= aimStartRadiusScreenPx;
     }
 }

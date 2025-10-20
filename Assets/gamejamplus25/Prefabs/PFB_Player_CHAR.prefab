@@ -448,9 +448,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a66bbdac3ac8904bb18e6d451e5cc27, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minDrawDistance: 2
-  maxDrawDistance: 20
-  minShootSpeed: 5
+  minDrawDistance: 1.5
+  maxDrawDistance: 8
+  minShootSpeed: 2
   maxShootSpeed: 60
   unlockHysteresis: 0.05
   showLineDeadzone: 0.08
@@ -458,6 +458,10 @@ MonoBehaviour:
   ghostLineColor: {r: 1, g: 1, b: 1, a: 0.3}
   lockedLineColor: {r: 1, g: 1, b: 1, a: 1}
   renderLineHere: 0
+  aimPlaneYOffset: 0
+  parallelRayFallbackDistance: 20
+  aimStartRadiusScreenPx: 120
+  requireNearPressToStartAim: 1
   camera: {fileID: 0}
   slopeProbe: {fileID: 5311624937001669014}
   settle: {fileID: 7672785592188265784}
@@ -518,7 +522,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lineForce: {fileID: 4568963419422181251}
-  camera: {fileID: 0}
   fillLine: {fileID: 9212280616372087346}
   maxLine: {fileID: 3696058520254644666}
   fillGradient:
@@ -584,7 +587,6 @@ MonoBehaviour:
   ghostAlpha: 0.3
   maxBaseAlpha: 0.5
   startOffset: 0
-  flattenToY: 0
   checkInterval: 0.02
   hideWhenTooShort: 1
   minVisibleLength: 0.05

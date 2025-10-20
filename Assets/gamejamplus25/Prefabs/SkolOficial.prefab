@@ -14,8 +14,8 @@ GameObject:
   - component: {fileID: 6054323505755843779}
   - component: {fileID: 461065813495633054}
   - component: {fileID: 7041831156396117280}
-  - component: {fileID: 8706463391908597081}
   - component: {fileID: 6702609724193941622}
+  - component: {fileID: 757155877667172139}
   m_Layer: 8
   m_Name: SkolOficial
   m_TagString: Untagged
@@ -157,6 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   waypoints:
   - {fileID: 0}
+  - {fileID: 0}
   speed: 3
   rotationSpeed: 5
   stopDistance: 0.1
@@ -166,19 +167,6 @@ MonoBehaviour:
   viewAngle: 60
   segments: 23
   visionConeMesh: {fileID: 0}
---- !u!114 &8706463391908597081
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8619810569664795283}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 44cac73e58de4e03bfa6f3c7ce6d7929, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  impulseThreshold: 7.5
 --- !u!114 &6702609724193941622
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -192,6 +180,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyPointsValue: 100
+--- !u!114 &757155877667172139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8619810569664795283}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44cac73e58de4e03bfa6f3c7ce6d7929, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  impulseThreshold: 7.5
 --- !u!1001 &1937984534736505661
 PrefabInstance:
   m_ObjectHideFlags: 0

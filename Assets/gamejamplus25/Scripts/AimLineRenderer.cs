@@ -4,17 +4,16 @@ using UnityEngine;
 ///  - maxLine  : always full length (maxDrawDistance) in the current aim direction
 ///  - fillLine : current length based on cursor distance
 ///
-/// Handles color, ghost transparency, power gradient, and start offset dynamically.
+/// IMPORTANT: This presenter reads positions from LineForce and does NOT raycast.
 [DisallowMultipleComponent]
 public class AimLineRenderer : MonoBehaviour
 {
     [Header("Sources")]
     [SerializeField] private LineForce lineForce;
-    [SerializeField] private new Camera camera;
 
     [Header("Lines")]
-    [SerializeField] private LineRenderer fillLine;
-    [SerializeField] private LineRenderer maxLine;
+    [SerializeField] private LineRenderer fillLine;   // variable-length line
+    [SerializeField] private LineRenderer maxLine;    // always max length
 
     [Header("Line Colors")]
     [SerializeField] private Gradient fillGradient = new Gradient
@@ -54,8 +53,6 @@ public class AimLineRenderer : MonoBehaviour
     [Header("Geometry")]
     [Tooltip("Distance offset from the ball center to start drawing lines.")]
     [SerializeField, Range(0f, 1f)] private float startOffset = 0.2f;
-    [Tooltip("World Y where lines are drawn (table plane).")]
-    [SerializeField] private float flattenToY = 0f;
 
     [Header("Timing & Behavior")]
     [SerializeField] private float checkInterval = 0.02f;
@@ -64,35 +61,44 @@ public class AimLineRenderer : MonoBehaviour
     [SerializeField] private float minVisibleLength = 0.05f;
 
     float _nextCheck;
-    Vector3 _lastDir;
+    Vector3 _lastDir = Vector3.forward;
 
     void Reset()
     {
-        if (!lineForce) lineForce = GetComponent<LineForce>();
-        camera = Camera.main;
+        if (!lineForce) lineForce = GetComponentInParent<LineForce>();
     }
 
     void Awake()
     {
-        if (!camera) camera = Camera.main;
+        if (!lineForce) lineForce = GetComponentInParent<LineForce>();
         ApplyGradients();
         Enable(false);
+        Setup(fillLine);
+        Setup(maxLine);
     }
 
     void OnEnable()
     {
         if (!lineForce) return;
-        lineForce.AimStarted += OnAimStarted;
+        lineForce.AimStarted      += OnAimStarted;
         lineForce.AimPowerChanged += OnAimPowerChanged;
-        lineForce.AimEnded += OnAimEnded;
+        lineForce.AimEnded        += OnAimEnded;
     }
 
     void OnDisable()
     {
         if (!lineForce) return;
-        lineForce.AimStarted -= OnAimStarted;
+        lineForce.AimStarted      -= OnAimStarted;
         lineForce.AimPowerChanged -= OnAimPowerChanged;
-        lineForce.AimEnded -= OnAimEnded;
+        lineForce.AimEnded        -= OnAimEnded;
+    }
+
+    void Setup(LineRenderer lr)
+    {
+        if (!lr) return;
+        lr.positionCount = 2;
+        lr.useWorldSpace = true;
+        lr.enabled = false;
     }
 
     void OnAimStarted()
@@ -107,13 +113,11 @@ public class AimLineRenderer : MonoBehaviour
         _nextCheck = Time.unscaledTime + Mathf.Max(0.005f, checkInterval);
         if (!lineForce) return;
 
-        Vector3 origin = FlattenToPlane(lineForce.IsLocked ? lineForce.LockOrigin : transform.position);
-        Vector3? hit = CastMouseRay();
-        if (!hit.HasValue) return;
+        // ----- READ FROM LINEFORCE (no raycasts) -----
+        Vector3 origin = lineForce.CurrentAimOrigin;
+        Vector3 cursor = lineForce.CursorWorld;
 
-        Vector3 cursor = FlattenToPlane(hit.Value);
         Vector3 delta = cursor - origin; delta.y = 0f;
-
         float rawDist = delta.magnitude;
         if (rawDist > 0.0001f) _lastDir = delta / rawDist;
 
@@ -143,15 +147,15 @@ public class AimLineRenderer : MonoBehaviour
         // ---- Geometry with start offset & non-negative effective lengths ----
         Vector3 offsetOrigin = origin + _lastDir * startOffset;
 
-        // Ensure we never draw "backwards" toward the ball.
-        float fillEffective   = Mathf.Max(0f, clamped - startOffset);
+        // Never draw backwards toward the ball.
+        float fillEffective    = Mathf.Max(0f, clamped - startOffset);
         float outlineEffective = Mathf.Max(0f, maxLen  - startOffset);
 
         Vector3 fillEnd = offsetOrigin + _lastDir * fillEffective;
         Vector3 maxEnd  = offsetOrigin + _lastDir * outlineEffective;
 
         Draw(fillLine, offsetOrigin, fillEnd);
-        Draw(maxLine, offsetOrigin, maxEnd);
+        Draw(maxLine,  offsetOrigin, maxEnd);
 
         // ---- Visibility gate based on effective visible length ----
         if (hideWhenTooShort)
@@ -167,7 +171,7 @@ public class AimLineRenderer : MonoBehaviour
     void Enable(bool on)
     {
         if (fillLine) { fillLine.positionCount = 2; fillLine.enabled = on; }
-        if (maxLine)  { maxLine.positionCount = 2;  maxLine.enabled = on;  }
+        if (maxLine)  { maxLine.positionCount = 2;  maxLine.enabled  = on; }
     }
 
     void Draw(LineRenderer lr, Vector3 a, Vector3 b)
@@ -176,24 +180,6 @@ public class AimLineRenderer : MonoBehaviour
         lr.positionCount = 2;
         lr.SetPosition(0, a);
         lr.SetPosition(1, b);
-    }
-
-    Vector3 FlattenToPlane(Vector3 v) => new(v.x, flattenToY, v.z);
-
-    Vector3? CastMouseRay()
-    {
-        if (!camera) camera = Camera.main;
-        if (!camera) return null;
-
-        Vector3 near = new(Input.mousePosition.x, Input.mousePosition.y, camera.nearClipPlane);
-        Vector3 far  = new(Input.mousePosition.x, Input.mousePosition.y, camera.farClipPlane);
-        Vector3 nearW = camera.ScreenToWorldPoint(near);
-        Vector3 dir   = camera.ScreenToWorldPoint(far) - nearW;
-
-        if (Physics.Raycast(nearW, dir, out RaycastHit hit, float.PositiveInfinity))
-            return hit.point;
-
-        return null;
     }
 
     void ApplyGradients()
