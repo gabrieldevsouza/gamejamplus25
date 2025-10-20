@@ -474,6 +474,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 785fc44decccf3744b69e1d1a3077dea, type: 3}
+--- !u!4 &487854322 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 835983691067898697, guid: 785fc44decccf3744b69e1d1a3077dea, type: 3}
+  m_PrefabInstance: {fileID: 487854321}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &500456969
 GameObject:
   m_ObjectHideFlags: 0
@@ -1261,7 +1266,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8365b49cc405d094cba9518c2fb3097a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _obstaclesParent: {fileID: 0}
+  _obstaclesParent: {fileID: 487854322}
   _line: {fileID: 279464745}
   _maxPhysicsFrameIterations: 100
 --- !u!1 &2121404212
