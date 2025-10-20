@@ -25,7 +25,7 @@ public class DoorManagement : MonoBehaviour
             openAll();
 
             // Destruir o objeto depois do fade
-            Destroy(gameObject, fadeDuration);
+            GetComponent<Collider>().enabled = false;
         }
     }
 
