@@ -1734,6 +1734,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 342674f56b884527b2a9d72ec06dd487, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nextSceneName: SCN_InitialMenu
+  loadDelay: 1.5
+  winPanel: {fileID: 0}
 --- !u!4 &2079773960
 Transform:
   m_ObjectHideFlags: 0

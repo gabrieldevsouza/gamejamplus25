@@ -489,6 +489,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2657814320686854126, guid: 814b52f661b57074b93f642cbb3bff23, type: 3}
+      propertyPath: Target.TrackingTarget
+      value: 
+      objectReference: {fileID: 2084701552}
     - target: {fileID: 5747778275391055263, guid: 814b52f661b57074b93f642cbb3bff23, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -1681,6 +1685,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 342674f56b884527b2a9d72ec06dd487, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nextSceneName: SCN_Level_4
+  loadDelay: 1.5
+  winPanel: {fileID: 0}
 --- !u!4 &2079773960
 Transform:
   m_ObjectHideFlags: 0
