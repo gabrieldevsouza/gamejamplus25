@@ -5,15 +5,9 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
     path: Assets/gamejamplus25/Scene/SCN_InitialMenu.unity
     guid: ddf050e0348ba3945bb68add4b16d1e8
-  - enabled: 0
-    path: Assets/gamejamplus25/Scene/SCN_TestLevel_SKT.unity
-    guid: 59267504745ae8e43b3d77a608b0174b
   - enabled: 1
     path: Assets/gamejamplus25/Scene/SCN_StageSelect_UI.unity
     guid: 9b07ddef04a447a47b43d91186048b1c

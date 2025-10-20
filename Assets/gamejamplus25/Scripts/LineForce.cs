@@ -59,6 +59,12 @@ public class LineForce : MonoBehaviour
 
     float _lastDbg;
 
+    // --- Pointer adapter (mouse or single-touch) ---
+    Vector2 _pointerPos;
+    bool _pointerDownThisFrame;
+    bool _pointerUpThisFrame;
+    bool _pointerHeld;
+
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
@@ -75,6 +81,8 @@ public class LineForce : MonoBehaviour
 
     void Update()
     {
+        PollPrimaryPointer(); // unified input
+
         float speed = _rb.linearVelocity.magnitude;
 
         if (debugState && Time.time - _lastDbg > 0.1f)
@@ -89,14 +97,14 @@ public class LineForce : MonoBehaviour
         }
 
         // Input edges
-        if (Input.GetMouseButtonDown(0))
+        if (_pointerDownThisFrame)
         {
             _inputHeld = true;
             if (!settle.InCooldown && _canAim && !_isAiming)
                 BeginAimingStopBall();
         }
 
-        if (Input.GetMouseButtonUp(0))
+        if (_pointerUpThisFrame)
         {
             _inputHeld = false;
             if (_isAiming)
@@ -107,13 +115,13 @@ public class LineForce : MonoBehaviour
         }
 
         // Enter aim if permission toggles true while holding
-        if (_inputHeld && !_isAiming && !settle.InCooldown && _canAim)
+        if (_pointerHeld && !_isAiming && !settle.InCooldown && _canAim)
             BeginAimingStopBall();
 
         // Aiming
         if (_isAiming)
         {
-            Vector3? hit = CastMouseClickRay();
+            Vector3? hit = CastPointerRay(_pointerPos);
             if (hit.HasValue)
             {
                 _cursorWorld = FlattenY(hit.Value);
@@ -203,11 +211,10 @@ public class LineForce : MonoBehaviour
         _isLocked = false;
         if (renderLineHere && lineRenderer) lineRenderer.enabled = false;
         AimEnded?.Invoke();
-        projection.ClearLine();
+        if (projection) projection.ClearLine();
     }
 
     // --- Trajectory Preview ---
-    // Computes the same initial velocity as the real shot and feeds the Projection.
     void UpdateTrajectoryPrediction(Vector3 origin, Vector3 cursor, float powerT)
     {
         if (!projection) return;
@@ -262,11 +269,49 @@ public class LineForce : MonoBehaviour
 
     Vector3 FlattenY(Vector3 v) => new(v.x, transform.position.y, v.z);
 
-    Vector3? CastMouseClickRay()
+    // --- Unified pointer input ---
+    void PollPrimaryPointer()
+    {
+        _pointerDownThisFrame = false;
+        _pointerUpThisFrame   = false;
+
+        // TOUCH (mobile)
+        if (Input.touchSupported && Input.touchCount > 0)
+        {
+            Touch t = Input.GetTouch(0);
+            _pointerPos = t.position;
+
+            switch (t.phase)
+            {
+                case TouchPhase.Began:
+                    _pointerHeld = true;
+                    _pointerDownThisFrame = true;
+                    break;
+                case TouchPhase.Moved:
+                case TouchPhase.Stationary:
+                    _pointerHeld = true;
+                    break;
+                case TouchPhase.Ended:
+                case TouchPhase.Canceled:
+                    _pointerHeld = false;
+                    _pointerUpThisFrame = true;
+                    break;
+            }
+            return;
+        }
+
+        // MOUSE (editor/desktop)
+        _pointerPos = Input.mousePosition;
+        _pointerDownThisFrame = Input.GetMouseButtonDown(0);
+        _pointerUpThisFrame   = Input.GetMouseButtonUp(0);
+        _pointerHeld          = Input.GetMouseButton(0);
+    }
+
+    Vector3? CastPointerRay(Vector2 screenPos)
     {
         if (!camera) return null;
-        Vector3 near = new(Input.mousePosition.x, Input.mousePosition.y, camera.nearClipPlane);
-        Vector3 far  = new(Input.mousePosition.x, Input.mousePosition.y, camera.farClipPlane);
+        Vector3 near = new(screenPos.x, screenPos.y, camera.nearClipPlane);
+        Vector3 far  = new(screenPos.x, screenPos.y, camera.farClipPlane);
         Vector3 nearW = camera.ScreenToWorldPoint(near);
         Vector3 farW  = camera.ScreenToWorldPoint(far);
         if (Physics.Raycast(nearW, farW - nearW, out RaycastHit hit, float.PositiveInfinity))
